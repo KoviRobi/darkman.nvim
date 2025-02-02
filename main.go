@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/neovim/go-client/nvim"
 	"github.com/neovim/go-client/nvim/plugin"
@@ -110,9 +112,28 @@ error:
 }
 
 func main() {
-	plugin.Main(func(p *plugin.Plugin) error {
-		p.HandleFunction(&plugin.FunctionOptions{Name: "DarkmanGetMode"}, getMode)
-		p.HandleFunction(&plugin.FunctionOptions{Name: "DarkmanSetup"}, setup)
-		return nil
-	})
+	if len(os.Args) == 2 && os.Args[1] == "debug" {
+		var err error
+		var p Portal
+		var ch <-chan string
+		if p, err = setupPortal(); err != nil {
+			log.Fatal(err)
+		}
+		if currentMode, err = p.getMode(); err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Current mode is", currentMode)
+		if ch, err = p.setupSignal(); err != nil {
+			log.Fatal(err)
+		}
+		for currentMode = range ch {
+			log.Println("New mode", currentMode)
+		}
+	} else {
+		plugin.Main(func(p *plugin.Plugin) error {
+			p.HandleFunction(&plugin.FunctionOptions{Name: "DarkmanGetMode"}, getMode)
+			p.HandleFunction(&plugin.FunctionOptions{Name: "DarkmanSetup"}, setup)
+			return nil
+		})
+	}
 }
