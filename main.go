@@ -50,7 +50,7 @@ func (args *setupArgs) handleNewMode() error {
 			colorscheme = args.Colorscheme.Light
 		}
 	default:
-		return errors.New(fmt.Sprintf("Unexpected mode: %s", currentMode))
+		return fmt.Errorf("Unexpected mode: %s", currentMode)
 	}
 	if c := args.Colorscheme; c != nil {
 		err = args.v.Command("colorscheme " + colorscheme)
