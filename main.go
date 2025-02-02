@@ -11,13 +11,12 @@ import (
 )
 
 const (
-	UNKNOWN = iota
-	DARK
-	LIGHT
-	UNINITIALIZED
+	UNINITIALIZED string = ""
+	DARK                 = "dark"
+	LIGHT                = "light"
 )
 
-var currentMode uint32 = UNINITIALIZED
+var currentMode string
 
 type setupArgs struct {
 	v                *nvim.Nvim `msgpack:"-"`
@@ -29,11 +28,11 @@ type setupArgs struct {
 	}
 }
 
-func getMode(args []string) (int, error) {
+func getMode(args []string) (string, error) {
 	if currentMode == UNINITIALIZED {
-		return 0, errors.New("Mode not yet initialized, call `Setup`")
+		return "", errors.New("Mode not yet initialized, call `Setup`")
 	}
-	return int(currentMode), nil
+	return currentMode, nil
 }
 
 func (args *setupArgs) handleNewMode() error {
@@ -51,7 +50,7 @@ func (args *setupArgs) handleNewMode() error {
 			colorscheme = args.Colorscheme.Light
 		}
 	default:
-		return errors.New(fmt.Sprintf("Unexpected mode: %d", currentMode))
+		return errors.New(fmt.Sprintf("Unexpected mode: %s", currentMode))
 	}
 	if c := args.Colorscheme; c != nil {
 		err = args.v.Command("colorscheme " + colorscheme)
@@ -77,7 +76,7 @@ func (args *setupArgs) handleNewMode() error {
 func setup(v *nvim.Nvim, args setupArgs) {
 	var err error
 	var p Portal
-	var ch <-chan uint32
+	var ch <-chan string
 	if currentMode != UNINITIALIZED {
 		err = errors.New("setup() already called")
 		goto error

@@ -4,11 +4,11 @@ import (
 	"github.com/godbus/dbus/v5"
 )
 
-const PORTAL_BUS_NAME = "org.freedesktop.portal.Desktop"
-const PORTAL_OBJ_PATH = "/org/freedesktop/portal/desktop"
-const PORTAL_INTERFACE = "org.freedesktop.portal.Settings"
-const PORTAL_NAMESPACE = "org.freedesktop.appearance"
-const PORTAL_KEY = "color-scheme"
+const PORTAL_BUS_NAME = "nl.whynothugo.darkman"
+const PORTAL_OBJ_PATH = "/nl/whynothugo/darkman"
+const PORTAL_INTERFACE = "org.freedesktop.DBus.Properties"
+const PORTAL_NAMESPACE = "nl.whynothugo.darkman"
+const PORTAL_KEY = "Mode"
 
 type Portal struct {
 	*dbus.Conn
@@ -19,27 +19,26 @@ func setupPortal() (Portal, error) {
 	return Portal{conn}, err
 }
 
-func (p *Portal) getMode() (uint32, error) {
+func (p *Portal) getMode() (string, error) {
 	dest := p.Object(PORTAL_BUS_NAME, PORTAL_OBJ_PATH)
-	var mode uint32
-	err := dest.Call(PORTAL_INTERFACE+".Read", 0, PORTAL_NAMESPACE, PORTAL_KEY).Store(&mode)
+	var mode string
+	err := dest.Call(PORTAL_INTERFACE+".Get", 0, PORTAL_NAMESPACE, PORTAL_KEY).Store(&mode)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 	return mode, nil
 }
 
-func (p *Portal) setupSignal() (<-chan uint32, error) {
+func (p *Portal) setupSignal() (<-chan string, error) {
 	signals := make(chan *dbus.Signal)
-	modeChan := make(chan uint32)
+	modeChan := make(chan string)
 	p.Signal(signals)
 	err := p.AddMatchSignal(
 		dbus.WithMatchSender(PORTAL_BUS_NAME),
 		dbus.WithMatchObjectPath(PORTAL_OBJ_PATH),
 		dbus.WithMatchInterface(PORTAL_INTERFACE),
-		dbus.WithMatchMember("SettingChanged"),
+		dbus.WithMatchMember("PropertiesChanged"),
 		dbus.WithMatchArg0Namespace(PORTAL_NAMESPACE),
-		dbus.WithMatchArg(1, PORTAL_KEY),
 	)
 	if err != nil {
 		return nil, err
@@ -50,9 +49,12 @@ func (p *Portal) setupSignal() (<-chan uint32, error) {
 			if len(sig.Body) != 3 {
 				continue
 			}
-			val, ok := sig.Body[2].(dbus.Variant).Value().(uint32)
-			if ok {
-				modeChan <- val
+			if len(sig.Body) >= 2 {
+				if dict, ok := sig.Body[1].(map[string]dbus.Variant); ok {
+					if val, ok := dict[PORTAL_KEY].Value().(string); ok {
+						modeChan <- val
+					}
+				}
 			}
 		}
 	}()
